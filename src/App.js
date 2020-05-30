@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document ,pdfjs ,Page } from 'react-pdf'
 import "./App.css"
+const { BufferList } = require('bl')
 var CryptoJS = require("crypto-js");
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`
@@ -12,51 +13,63 @@ const ipfs = ipfsClient({ host: 'ipfs.infura.io', port: '5001', protocol: 'https
 class App extends React.Component {
     constructor(){
       super()
-      var encrypted = CryptoJS.AES.encrypt("harman","harman" );
-      var decrypted = CryptoJS.AES.decrypt(encrypted,"harman" )
-      console.log(encrypted.toString());
-      console.log(decrypted.toString(CryptoJS.enc.Utf8));
       this.state ={
         buffer : null,
         content : null
       }
     }
 
+
+//load file and get the buffer ready
     handleFile = (event) =>{
         event.preventDefault()
         const file = event.target.files[0]
         console.log(file);
+
         const reader = new  window.FileReader()
         reader.readAsArrayBuffer(file)
         reader.onloadend =()=>{
-          this.setState({buffer : Buffer(reader.result)});
+
+          var encrypted = this.encrypt(reader.result)
+          this.setState({encryptData: encrypted})
         }
     }
 
   //  ex hash:  "QmcMtiXRqkSB9XU9sK418Bp9igfSDKajqLCwXnfx5SXVsP"
   // ex hash 2 :"QmNnR4ox1UQAdC5Mzo1E8T5XRmxUp6mDxjR3rLoe3AssvV"
   //ex 3 : "QmPnTzoqGFN5Pv7NGQJgDJVetRYUfc3md3f1EF8GjbNCvj"
+  //ex 4 :"QmcxMpZEX84H9JYgLByQtVHUs8H6vcVQw3ng5rYjfTTGxu" encrypted
   // url : https://ipfs.infura.io/ipfs/QmcMtiXRqkSB9XU9sK418Bp9igfSDKajqLCwXnfx5SXVsP
     onSubmit = async (event)=>{
       event.preventDefault()
       console.log("uploading...");
-      for await (const result of ipfs.add(this.state.buffer)) {
+      for await (const result of ipfs.add(this.state.encryptData)) {
         console.log(result)
   }
  }
 
+ encrypt = (data)=>{
+          var encrypted = CryptoJS.AES.encrypt(JSON.stringify(Buffer(data)),"harman" ).toString();
+          return encrypted
+ }
+
+ decrypt = (data)=>{
+      var decryptedtext = CryptoJS.AES.decrypt(data,"harman" )
+      var decrypted = JSON.parse(decryptedtext.toString(CryptoJS.enc.Utf8))
+      return decrypted
+ }
  getFile = async (event)=>{
   event.preventDefault()
-  for await (const file of ipfs.get("QmPnTzoqGFN5Pv7NGQJgDJVetRYUfc3md3f1EF8GjbNCvj")) {
+  for await (const file of ipfs.get("QmcxMpZEX84H9JYgLByQtVHUs8H6vcVQw3ng5rYjfTTGxu")) {
   console.log(file)
   if (!file.content) continue;
 
   var arr = []
+  var content = new BufferList()
   for await (const chunk of file.content) {
-    arr.push(chunk._bufs[0])
+    content.append(chunk)
   }
-  var buf = Buffer.concat(arr)
-  console.log(buf);
+  var buf = this.decrypt(content.toString()).data;
   this.setState({content:buf})
 
   }
