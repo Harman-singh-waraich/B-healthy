@@ -3,6 +3,7 @@ import { Document ,pdfjs ,Page } from 'react-pdf'
 import "./App.css"
 import Web3 from 'web3'
 import Authereum from 'authereum'
+import health from "./abis/Health.json"
 const { BufferList } = require('bl')
 var CryptoJS = require("crypto-js");
 
@@ -28,27 +29,44 @@ class App extends React.Component {
     console.log(window.web3);
     this.setState({loading:false})
 }
-LoadWeb3 =async ()=>{
+LoadWeb3 =async ()=>{ //check for metamask else use Authereum
   if(window.ethereum){
     window.web3 = new Web3(window.ethereum)
     await window.ethereum.enable()
-}
-else if(window.web3){
-  window.web3 = new Web3(window.web3.currentProvider)
-}
-else {
-  const authereum = new Authereum('mainnet')
-  const provider = authereum.getProvider()
-  window.web3 = new Web3(provider)
-  await provider.enable()
-  const accounts = await window.web3.eth.getAccounts()
-  console.log(accounts[0])
-}
-
-}
+  }
+  else if(window.web3){
+    window.web3 = new Web3(window.web3.currentProvider)
+  }
+  else {
+    const authereum = new Authereum('mainnet')
+    const provider = authereum.getProvider()
+    window.web3 = new Web3(provider)
+    await provider.enable()
+    const accounts = await window.web3.eth.getAccounts()
+    console.log(accounts[0])
+  }
+ }
   loadBlockchainData = async ()=>{
+    window.accounts = await window.web3.eth.getAccounts();
+    console.log(window.accounts);
+    this.setState({account:window.accounts[0]})
+    const networkId = await window.web3.eth.net.getId()
+    const health_address = health.networks[networkId].address;
+    const Health = await new window.web3.eth.Contract(health.abi,health.networks[networkId].address);
+    this.setState({Health})
+    await Health.methods.SaveReport("abc").send({from:"0x4890FAE834401502cC9d84dbB22383351f488844"})
+    var test = await Health.methods.getUserReports().call({from:"0x4890FAE834401502cC9d84dbB22383351f488844"})
+    console.log(test);
  }
 
+ //check for account change
+  updater = setInterval(async ()=>{
+   let self = this;
+   window.ethereum.on('accountsChanged', function (accounts) {
+      window.location.reload();
+      self.setState({account:accounts[0]})
+    })
+  },1000)
 
 //load file and get the buffer ready
     handleFile = (event) =>{
