@@ -1,6 +1,8 @@
 import React from 'react';
 import { Document ,pdfjs ,Page } from 'react-pdf'
 import "./App.css"
+import Web3 from 'web3'
+import Authereum from 'authereum'
 const { BufferList } = require('bl')
 var CryptoJS = require("crypto-js");
 
@@ -15,9 +17,37 @@ class App extends React.Component {
       super()
       this.state ={
         buffer : null,
-        content : null
+        content : null,
+        loading : true
       }
     }
+
+  async componentWillMount(){
+    await this.LoadWeb3()
+    await this.loadBlockchainData()
+    console.log(window.web3);
+    this.setState({loading:false})
+}
+LoadWeb3 =async ()=>{
+  if(window.ethereum){
+    window.web3 = new Web3(window.ethereum)
+    await window.ethereum.enable()
+}
+else if(window.web3){
+  window.web3 = new Web3(window.web3.currentProvider)
+}
+else {
+  const authereum = new Authereum('mainnet')
+  const provider = authereum.getProvider()
+  window.web3 = new Web3(provider)
+  await provider.enable()
+  const accounts = await window.web3.eth.getAccounts()
+  console.log(accounts[0])
+}
+
+}
+  loadBlockchainData = async ()=>{
+ }
 
 
 //load file and get the buffer ready
@@ -58,13 +88,13 @@ class App extends React.Component {
       var decrypted = JSON.parse(decryptedtext.toString(CryptoJS.enc.Utf8))
       return decrypted
  }
+
  getFile = async (event)=>{
   event.preventDefault()
   for await (const file of ipfs.get("QmcxMpZEX84H9JYgLByQtVHUs8H6vcVQw3ng5rYjfTTGxu")) {
   console.log(file)
   if (!file.content) continue;
 
-  var arr = []
   var content = new BufferList()
   for await (const chunk of file.content) {
     content.append(chunk)
@@ -79,26 +109,29 @@ class App extends React.Component {
    var pdf = {
      data: this.state.content
    }
-   console.log(pdf.data);
    this.setState({fileView : <Document file ={pdf}>
                                 <Page pageNumber={1} />
                               </Document>
          })
-
-
  }
 
   render(){
+    var content
+    if(this.state.loading){
+      content = <h1>Loading...</h1>
+    }else{
+      content =<div className="App">
+                <form onSubmit={this.onSubmit}>
+                  <input type="file" onChange={this.handleFile}/>
+                  <input type="submit" />
+                </form>
+                <button onClick={this.getFile}>getFile</button>
+                <button onClick={this.viewFile}>viewFile</button>
+                {this.state.fileView}
+          </div>
+    }
     return (
-    <div className="App">
-        <form onSubmit={this.onSubmit}>
-          <input type="file" onChange={this.handleFile}/>
-          <input type="submit" />
-        </form>
-        <button onClick={this.getFile}>getFile</button>
-        <button onClick={this.viewFile}>viewFile</button>
-        {this.state.fileView}
-    </div>
+        <div>{content}</div>
   );
 }
 }
