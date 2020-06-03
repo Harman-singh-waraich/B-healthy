@@ -14,7 +14,6 @@ export default class FileView extends Component {
     this.state ={
       file: props.file
     }
-    console.log(this.props.file);
   }
 
   onDocumentLoadSuccess = ({ numPages }) => {

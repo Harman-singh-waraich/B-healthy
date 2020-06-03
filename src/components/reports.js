@@ -1,24 +1,16 @@
-import React from "react";
+import React ,{ useState }from "react";
 import { Card ,Button} from 'react-bootstrap';
 import { Row, Col, Divider } from 'antd';
+import Time from "./time.js"
 
 
-class Time extends React.Component{
-    constructor(props){
-      super(props)
-    }
-    render(){
-      var utcSeconds = this.props._time;
-      var d = new Date(0);
-      d.setUTCSeconds(utcSeconds);
-      return <p style={{color:"#fff"}}>{`${d}`}</p>
-    }
-  }
 
 function List(props){
+  const [buttonState,setButtonState] = useState("View")
   const reports = props.reports
   var items =[]
   const listItems = reports.map((report)=>{
+
                    items.push(<div>
                                 <Card
                                   bg={'secondary'}
@@ -30,7 +22,7 @@ function List(props){
                                         <Card.Text style={{color:"#fff"}}>
                                           <Time _time={report.dated}/>
                                         </Card.Text>
-                                        <Button variant="primary" onClick={()=>{props.fileView(report.fileHash)}} style={{float:"right",height:"50px"}}>View</Button>
+                                        <Button variant="primary" onClick={()=>{setButtonState("Loading");props.fileView(report.fileHash)}} style={{float:"right",height:"50px"}}>{buttonState}</Button>
                                       </Card.Body>
                                   </Card>
                                   <div style={{height:"30px"}}><p></p></div>
@@ -84,15 +76,15 @@ class Reports extends React.Component{
     }else{
       content=<div>
 
-                  <section class="engine"></section><section class="services5 cid-s0zampLCEb mbr-parallax-background" id="services5-4">
+                  <section className="engine"></section><section className="services5 cid-s0zampLCEb mbr-parallax-background" id="services5-4">
 
-                    <div class="mbr-overlay" style={{opacity: 0.5, backgroundColor: "rgb(206, 191, 175)"}}>
+                    <div className="mbr-overlay" style={{opacity: 0.5, backgroundColor: "rgb(206, 191, 175)"}}>
                     </div>
 
-                    <div class="container">
-                      <div class="row">
-                        <div class="title pb-5 col-12">
-                          <h2 class="align-left mbr-fonts-style m-0 display-2">REPORTS</h2>
+                    <div className="container">
+                      <div className="row">
+                        <div className="title pb-5 col-12">
+                          <h2 className="align-left mbr-fonts-style m-0 display-2">REPORTS</h2>
                         </div>
 
                       <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }}>

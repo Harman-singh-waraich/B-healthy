@@ -1,3 +1,7 @@
+require('dotenv').config();
+var HDWalletProvider = require('@truffle/hdwallet-provider');
+var mnemonic = process.env["NEMONIC"];
+var id = process.env["ID"];
 /**
  * Use this file to configure your truffle project. It's seeded with some
  * common settings for different networks and features like migrations,
@@ -75,8 +79,17 @@ module.exports = {
       // network_id: 2111,   // This network is yours, in the cloud.
       // production: true    // Treats this network as if it was a public net. (default: false)
     // }
-  },
 
+  rinkeby:{
+      host: "localhost",
+      provider: function() {
+        return new HDWalletProvider( mnemonic,"https://rinkeby.infura.io/v3/"+id);
+      },
+      network_id:4
+      , gas : 6700000
+      , gasPrice : 10000000000
+    }
+  },
   contracts_directory: './src/contracts/',
   contracts_build_directory: './src/abis/',
   // Set default mocha options here, use special reporters etc.

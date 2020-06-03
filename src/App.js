@@ -6,6 +6,7 @@ import Authereum from 'authereum'
 import Home from './components/home.js'
 import FileView from "./components/viewFile.js"
 import Reports from './components/reports.js'
+import Search from './components/search.js'
 import health from "./abis/Health.json"
 const { BufferList } = require('bl')
 var CryptoJS = require("crypto-js");
@@ -42,7 +43,8 @@ LoadWeb3 =async ()=>{ //check for metamask else use Authereum
     window.web3 = new Web3(window.web3.currentProvider)
   }
   else {
-    const authereum = new Authereum('mainnet')
+    alert("metamask not found!   -------- Using Authereum for login plz wait!")
+    const authereum = new Authereum('rinkeby')
     const provider = authereum.getProvider()
     window.web3 = new Web3(provider)
     await provider.enable()
@@ -76,27 +78,33 @@ LoadWeb3 =async ()=>{ //check for metamask else use Authereum
         event.preventDefault()
         const file = event.target.files[0]
         console.log(file);
+        if(file.type==="application/pdf"){
 
-        const reader = new  window.FileReader()
-        reader.readAsArrayBuffer(file)
-        reader.onloadend =()=>{
-
-          var encrypted = this.encrypt(reader.result)
-
-          this.setState({encryptData: encrypted})
+                  const reader = new  window.FileReader()
+                  reader.readAsArrayBuffer(file)
+                  reader.onloadend =()=>{
+                    var encrypted = this.encrypt(reader.result)
+                    this.setState({encryptData: encrypted})
+                 }
+        }else{
+          alert("file format should be .pdf")
+          window.location.reload()
         }
     }
 
-  //ex 3 : "QmPnTzoqGFN5Pv7NGQJgDJVetRYUfc3md3f1EF8GjbNCvj"
-  //ex 4 :"QmcxMpZEX84H9JYgLByQtVHUs8H6vcVQw3ng5rYjfTTGxu" encrypted
     onSubmit = async (name)=>{
-      console.log("ran");
       console.log("uploading...");
-      for await (const result of ipfs.add(this.state.encryptData)) {
-        this.setState({fileHash:result.path})
-        console.log(result)
-        await this.SaveReport(name)
+      this.setState({loading:true})
+      try{
+        for await (const result of ipfs.add(this.state.encryptData)) {
+          this.setState({fileHash:result.path})
+          await this.SaveReport(name)
+    }
+  }catch(err){
+    this.setState({loading:false})
+    alert(err.message)
   }
+
  }
 
  encrypt = (data)=>{
@@ -104,39 +112,50 @@ LoadWeb3 =async ()=>{ //check for metamask else use Authereum
           return encrypted
  }
 
+
+//decrypt the file ,using key on server-side !!Right now key is given directly!!
  decrypt = async (data,fileHash)=>{
    var file = await this.state.Health.methods.GetDetailedReport(fileHash).call()
    var authorisedUsers = await this.state.Health.methods.getAuthorisedUsers().call()
-   console.log(authorisedUsers,file.User);
+
    var user = file.User
    if(this.state.account == user||authorisedUsers.includes(this.state.account)){
      var decryptedtext = CryptoJS.AES.decrypt(data,"harman" )
      var decrypted = JSON.parse(decryptedtext.toString(CryptoJS.enc.Utf8))
      return decrypted
    }else{
-     alert("not authorised!");
      this.setState({loading:false})
+     alert("not authorised!");
+     throw("not authorised")
+
    }
  }
 
 
  getFile = async (fileHash)=>{
+  this.setState({loading:true})
   for await (const file of ipfs.get(fileHash)) {
-  console.log(file)
+
   if (!file.content) continue;
 
   var content = new BufferList()
   for await (const chunk of file.content) {
     content.append(chunk)
   }
-  this.decrypt(content.toString(),fileHash).then((buf)=>{
-    console.log(buf);
-    this.setState({content:buf.data})
-    var pdf = {
-     data: buf.data
-   }
-    this.setState({content:<FileView file={pdf}/>})
-  });
+  this.decrypt(content.toString(),fileHash).then((buf,err)=>{
+    if(err){
+      console.log(err.message);
+      this.setState({loading:false})
+    }else{
+
+      this.setState({content:buf.data})
+      var pdf = {
+       data: buf.data
+     }
+      this.setState({loading:false})
+      this.setState({content:<FileView file={pdf}/>})
+    }
+  }).catch((err)=>{});
   }
 }
 
@@ -144,15 +163,21 @@ LoadWeb3 =async ()=>{ //check for metamask else use Authereum
   SaveReport = async (name) =>{
     this.setState({loading:true})
     this.state.Health.methods.SaveReport(this.state.fileHash,name).send({from:this.state.account}).then((result)=>{
-      console.log(result);
+      alert("File uploaded!")
       this.setState({loading:false})
     }).catch((err)=>{
       console.log(err.message);
     })
   }
+
   getReports = async ()=>{
     var reports = await this.state.Health.methods.getUserReports(this.state.account).call()
     return reports;
+  }
+
+  getUserNames = async () =>{
+    var userNames = await this.state.Health.methods.getUserNames().call()
+    return userNames
   }
 
   getUserReports = async () =>{
@@ -165,72 +190,77 @@ LoadWeb3 =async ()=>{ //check for metamask else use Authereum
     return reports
   }
 
+  getUserReportsWithUserName = async (username) =>{
+    var reports =[]
+    var reportHashes = await this.state.Health.methods.getUserReportsWithUserName(username).call()
+    reportHashes.forEach(async (reportHash ) => {
+      var report = await this.state.Health.methods.GetDetailedReport(reportHash).call()
+      reports.push(report)
+    });
+    return reports
+  }
+
   render(){
     var content
     if(this.state.loading){
-      content = <h1>Loading...</h1>
+      content = <h1 style={{color:"#fff"}}>Loading...</h1>
     }else{
       content =<div className="App">
-      <section class="menu cid-s0z9wIHAuk" once="menu" id="menu1-0">
+      <section className="menu cid-s0z9wIHAuk"  id="menu1-0">
 
 
 
-        <nav class="navbar navbar-expand beta-menu navbar-dropdown align-items-center navbar-toggleable-sm bg-color transparent">
-        <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-        <div class="hamburger">
+        <nav className="navbar navbar-expand beta-menu navbar-dropdown align-items-center navbar-toggleable-sm bg-color transparent">
+        <button className="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <div className="hamburger">
           <span></span>
           <span></span>
           <span></span>
           <span></span>
         </div>
         </button>
-        <div class="menu-logo">
-        <div class="navbar-brand">
-          <span class="navbar-logo">
-            <a href="https://mobirise.co">
-               <img src="assets/images/logo2.png"  style={{height: 3.8}}/>
-            </a>
-          </span>
-          <span class="navbar-caption-wrap"><a class="navbar-caption text-white display-4" href="index.html">B-Healthy<br/></a></span>
+        <div className="menu-logo">
+        <div className="navbar-brand">
+          <span className="navbar-caption-wrap"><a className="navbar-caption text-white display-4" href="index.html">B-Healthy<br/></a></span>
         </div>
       </div>
-      <div class="collapse navbar-collapse" id="navbarSupportedContent">
-      <ul class="navbar-nav nav-dropdown" data-app-modern-menu="true"><li class="nav-item">
-            <a class="nav-link link text-white display-4" onClick={()=>{this.setState({content:<Home handleFile={this.handleFile}
+      <div className="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul className="navbar-nav nav-dropdown" data-app-modern-menu="true"><li className="nav-item">
+            <a className="nav-link link text-white display-4" onClick={()=>{this.setState({content:<Home handleFile={this.handleFile}
                                                                                                      onSubmit = {this.onSubmit}/>})}}>
-                <span class="mbri-home mbr-iconfont mbr-iconfont-btn"></span>Home</a>
-              </li><li class="nav-item"><a class="nav-link link text-white display-4" onClick={()=>{this.setState({content:<Reports getUserReports={this.getUserReports}
-                                                                                                                                    viewFile={this.getFile}/>})}}><span class="mbri-file mbr-iconfont mbr-iconfont-btn"></span>
+                <span className="mbri-home mbr-iconfont mbr-iconfont-btn"></span>Home</a>
+              </li><li className="nav-item"><a className="nav-link link text-white display-4" onClick={()=>{this.setState({content:<Reports getUserReports={this.getUserReports}
+                                                                                                                                    viewFile={this.getFile}/>})}}><span className="mbri-file mbr-iconfont mbr-iconfont-btn"></span>
               My Reports</a></li>
-            <li class="nav-item">
-              <a class="nav-link link text-white display-4" href="https://mobirise.co">
-                <span class="mbri-search mbr-iconfont mbr-iconfont-btn"></span>Search</a>
+            <li className="nav-item">
+              <a className="nav-link link text-white display-4" onClick={()=>{this.setState({content:<Search getUserNames={this.getUserNames}
+                                                                                                         getUserReportsWithUserName={this.getUserReportsWithUserName}
+                                                                                                         viewFile={this.getFile}/>})}}>
+                <span className="mbri-search mbr-iconfont mbr-iconfont-btn"></span>Search</a>
             </li></ul>
       </div>
       </nav>
   </section>
   {this.state.content}
-  <section once="footers" class="cid-s0zjQiOn5R mbr-reveal" id="footer7-8">
+  <section  className="cid-s0zjQiOn5R mbr-reveal" id="footer7-8">
 
-    <div class="container">
-    <div class="media-container-row align-center mbr-white">
-    <div class="row row-links">
-        <ul class="foot-menu">
-          <li class="foot-menu-item mbr-fonts-style display-7">
-              <a class="text-white mbr-bold" href="#" target="_blank">About us</a>
-          </li><li class="foot-menu-item mbr-fonts-style display-7">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</li><li class="foot-menu-item mbr-fonts-style display-7">
-              <a class="text-white mbr-bold" href="#" target="_blank">Get In Touch</a>
-          </li><li class="foot-menu-item mbr-fonts-style display-7">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</li><li class="foot-menu-item mbr-fonts-style display-7">
-              <a class="text-white mbr-bold" href="#" target="_blank">Work</a>
+    <div className="container">
+    <div className="media-container-row align-center mbr-white">
+    <div className="row row-links">
+        <ul className="foot-menu">
+         <li className="foot-menu-item mbr-fonts-style display-7">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</li><li className="foot-menu-item mbr-fonts-style display-7">
+              <a className="text-white mbr-bold" href="https://www.linkedin.com/in/harmeet-singh-b45b11190" target="_blank">Get In Touch</a>
+          </li><li className="foot-menu-item mbr-fonts-style display-7">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;</li><li className="foot-menu-item mbr-fonts-style display-7">
+              <a className="text-white mbr-bold" href="https://github.com/Harman-singh-waraich" target="_blank">Work</a>
           </li></ul>
       </div>
-      <div class="row social-row">
-        <div class="social-list align-right pb-2">
+      <div className="row social-row">
+        <div className="social-list align-right pb-2">
 
         </div>
       </div>
-      <div class="row row-copirayt">
-        <p class="mbr-text mb-0 mbr-fonts-style mbr-white align-center display-7">
+      <div className="row row-copirayt">
+        <p className="mbr-text mb-0 mbr-fonts-style mbr-white align-center display-7">
             © Copyright -Harmeet Singh</p>
       </div>
       </div>
@@ -245,8 +275,3 @@ LoadWeb3 =async ()=>{ //check for metamask else use Authereum
 }
 
 export default App;
-
-
-              // <button onClick={this.getFile}>getFile</button>
-              // <button onClick={this.viewFile}>viewFile</button>
-              // {this.state.fileView}
