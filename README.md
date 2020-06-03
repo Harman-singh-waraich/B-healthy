@@ -1,7 +1,8 @@
 # [B-Healthy](b-healthy721.web.app)
 
 As panic ensues due to the uprising of the novel coronavirus,Digital health records are relied upon to ensure authorised medical<br /> personnel can provide an optimum level of healthcare.On B-Healthy ,users can publish their health records safely on the blockchain and<br /> ensure that only authorised personnel can access them anywhere in the world.
-
+## Note 
+There are no Authorisations as of now. For authorisation contact [Harmeet Singh](https://www.linkedin.com/in/harmeet-singh-b45b11190/)
 ## link : [`b-healthy721.web.app`](b-healthy721.web.app)
 ## Login methods
 1.Metamask
